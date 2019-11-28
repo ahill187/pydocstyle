@@ -103,6 +103,19 @@ class ConventionChecker:
         r":"            # Followed by a colon
         ".+"            # Followed by 1 or more characters - which is the docstring for the parameter
     )
+    PLANTIGA_ARGS_REGEX = re(
+                            # Matches anything that fulfills all the following conditions:
+            r"^\s*"         # Begins with 0 or more whitespace characters
+            r"(\w+)"        # Followed by 1 or more unicode chars, numbers or underscores
+                            # The above is captured as the first group as this is the paramater name.
+            r"\s*"          # Followed by 0 or more whitespace characters
+            r"\(?(.*?)\)?"  # Matches patterns contained within round brackets.
+                            # The `(.*?)` is the second capturing group which matches any sequence of
+                            # characters in a non-greedy way (denoted by the `*?`)
+            r"\s*"          # Followed by 0 or more whitespace chars
+            r":"            # Followed by a colon
+            ".+"            # Followed by 1 or more characters - which is the docstring for the parameter
+    )
 
     def check_source(self, source, filename, ignore_decorators=None):
         module = parse(StringIO(source), filename)
@@ -183,7 +196,7 @@ class ConventionChecker:
                     return violations.D200(len(lines))
 
     @check_for(Function)
-    def check_no_blank_before(self, function, docstring):  # def
+    def check_no_blank_before_or_after(self, function, docstring):  # def
         """D20{1,2}: No blank lines allowed around function/method docstring.
 
         There's no blank line either before or after the docstring.
@@ -199,6 +212,24 @@ class ConventionChecker:
                 yield violations.D201(blanks_before_count)
             if not all(blanks_after) and blanks_after_count != 0:
                 yield violations.D202(blanks_after_count)
+
+    @check_for(Function)
+    def check_no_blank_before(self, function, docstring):  # def
+        """D20{1,16}: No blank lines allowed around function/method docstring.
+
+        There's no blank line either before and one blank after the docstring.
+
+        """
+        if docstring:
+            before, _, after = function.source.partition(docstring)
+            blanks_before = list(map(is_blank, before.split('\n')[:-1]))
+            blanks_after = list(map(is_blank, after.split('\n')[1:]))
+            blanks_before_count = sum(takewhile(bool, reversed(blanks_before)))
+            blanks_after_count = sum(takewhile(bool, blanks_after))
+            if blanks_before_count != 0:
+                yield violations.D201(blanks_before_count)
+            if not all(blanks_after) and blanks_after_count != 1:
+                yield violations.D216(blanks_after_count)
 
     @check_for(Class)
     def check_blank_before_after_class(self, class_, docstring):
@@ -424,6 +455,27 @@ class ConventionChecker:
 
         """
         return self._check_ends_with(docstring, ('.', '!', '?'), violations.D415)
+
+    @check_for(Function)
+    def check_args_section_exists(self, function, docstring):
+        """D418: Yield error for missing arguments in docstring.
+
+        Given a list of arguments found in the docstring and the
+        callable definition, it checks if all the arguments of the
+        callable are present in the docstring, else it yields a
+        D418 with a list of missing arguments.
+
+        """
+        function_args = get_function_args(function.source)
+        has_args_section = False
+        if len(function_args) > 0:
+            lines = ast.literal_eval(docstring).split('\n')
+            for line in lines:
+                if 'Args' in line or 'Arguments' in line:
+                    has_args_section = True
+                    break
+            if not has_args_section:
+                return violations.D418(', ','Missing Arguments section', '')
 
     @check_for(Function)
     def check_imperative_mood(self, function, docstring):  # def context
@@ -722,7 +774,7 @@ class ConventionChecker:
     def _check_args_section(docstring, definition, context):
         """D417: `Args` section checks.
 
-        Check for a valid `Args` or `Argument` section. Checks that:
+        Check for a valid `Args` or `Arguments` section. Checks that:
             * The section documents all function arguments (D417)
                 except `self` or `cls` if it is a method.
 
@@ -732,6 +784,7 @@ class ConventionChecker:
             match = ConventionChecker.GOOGLE_ARGS_REGEX.match(line)
             if match:
                 docstring_args.add(match.group(1))
+            print(line)
         yield from ConventionChecker._check_missing_args(docstring_args, definition)
 
 
@@ -900,7 +953,9 @@ class ConventionChecker:
 
         found_numpy = yield from self._check_numpy_sections(lines, definition, docstring)
         if not found_numpy:
-            yield from self._check_google_sections(lines, definition, docstring)
+            found_google = yield from self._check_google_sections(lines, definition, docstring)
+            if not found_google:
+                yield from self._check_plantiga_sections(lines, definition, docstring)
 
 
 parse = Parser()

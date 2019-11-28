@@ -209,6 +209,8 @@ D213 = D2xx.create_error('D213', 'Multi-line docstring summary should start '
 D214 = D2xx.create_error('D214', 'Section is over-indented', '{0!r}')
 D215 = D2xx.create_error('D215', 'Section underline is over-indented',
                          'in section {0!r}')
+D216 = D2xx.create_error('D216', 'Must have one blank line after function '
+                                 'docstring', 'found {0}')
 
 D3xx = ErrorRegistry.create_group('D3', 'Quotes Issues')
 D300 = D3xx.create_error('D300', 'Use """triple double quotes"""',
@@ -254,6 +256,8 @@ D416 = D4xx.create_error('D416', 'Section name should end with a colon',
                          '{0!r}, not {1!r}')
 D417 = D4xx.create_error('D417', 'Missing argument descriptions in the docstring',
                          'argument(s) {0} are missing descriptions in {1!r} docstring')
+D418 = D4xx.create_error('D418', 'Missing argument section in the docstring',
+                         '')
 
 class AttrDict(dict):
     def __getattr__(self, item: str) -> Any:
@@ -265,10 +269,14 @@ all_errors = set(ErrorRegistry.get_error_codes())
 
 conventions = AttrDict({
     'pep257': all_errors - {'D203', 'D212', 'D213', 'D214', 'D215', 'D404',
-                            'D405', 'D406', 'D407', 'D408', 'D409', 'D410',
-                            'D411', 'D413', 'D415', 'D416', 'D417'},
-    'numpy': all_errors - {'D107', 'D203', 'D212', 'D213', 'D402', 'D413',
-                           'D415', 'D416', 'D417'},
+                            'D216','D405', 'D406', 'D407', 'D408', 'D409',
+                            'D410','D411', 'D413', 'D415', 'D416', 'D417',
+                            'D418'},
+    'numpy': all_errors - {'D107', 'D203', 'D212', 'D213','D216', 'D402',
+                            'D413','D415', 'D416', 'D417','D418'},
     'google': all_errors - {'D203', 'D204', 'D213', 'D215', 'D400', 'D401',
-                            'D404', 'D406', 'D407', 'D408', 'D409'}
+                            'D404', 'D406', 'D407', 'D408', 'D409'},
+    'plantiga': all_errors - {'D201', 'D202', 'D203', 'D204', 'D213', 'D215',
+                                'D400', 'D401','D404', 'D406', 'D407',
+                                'D408', 'D409', 'D413'}
 })
